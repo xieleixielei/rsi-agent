@@ -1,0 +1,15 @@
+{
+  "name": "rsi-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test",
+    "test:plugin": "node --test plugins/deepseek-harness-rsi/test/*.test.js"
+  },
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=20"
+  }
+}
