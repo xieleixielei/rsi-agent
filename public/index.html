@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <title>RSI Agent — Human-guided adaptation</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand"><span class="brand-mark">R</span><span>RSI Agent</span></div>
+        <nav>
+          <a class="active" href="#today">Today</a>
+          <a href="#proposals">Suggestions <span id="nav-count">0</span></a>
+          <a href="#habits">Learned habits</a>
+          <a href="#activity">Activity</a>
+        </nav>
+        <div class="privacy-note">
+          <span class="pulse"></span>
+          Local observation only
+          <small>No data leaves this device</small>
+        </div>
+      </aside>
+
+      <main>
+        <header>
+          <div>
+            <p class="eyebrow">HUMAN-GUIDED ADAPTATION</p>
+            <h1>Your agent should not make<br />the same mistake twice.</h1>
+            <p class="lede">RSI Agent notices repeated corrections, proposes a scoped habit, and waits for your approval.</p>
+          </div>
+          <div class="header-actions">
+            <button id="sample" class="secondary">Load sample week</button>
+            <button id="reset" class="ghost">Reset</button>
+          </div>
+        </header>
+
+        <section id="today" class="metrics" aria-label="Summary">
+          <article><strong id="metric-corrections">0</strong><span>Corrections observed</span></article>
+          <article><strong id="metric-proposed">0</strong><span>Suggestions waiting</span></article>
+          <article><strong id="metric-trial">0</strong><span>Habits in trial</span></article>
+          <article class="accent"><strong id="metric-adopted">0</strong><span>Habits learned</span></article>
+        </section>
+
+        <div class="grid">
+          <section class="panel feedback-panel">
+            <div class="section-heading">
+              <div><p class="eyebrow">TEACH BY CORRECTING</p><h2>Record feedback</h2></div>
+              <span class="badge">DeepSeek Harness session</span>
+            </div>
+            <p class="muted">Add the same correction three times across at least two tasks to trigger a suggestion.</p>
+            <form id="feedback-form">
+              <label>What did the agent get wrong?</label>
+              <div id="feedback-labels" class="choice-grid"></div>
+              <div class="form-row">
+                <label>Task ID<input id="run-id" name="runId" value="run-001" required /></label>
+                <label>Project<input name="project" value="rsi-agent" required /></label>
+              </div>
+              <label>What did you change?<textarea name="note" rows="3" placeholder="I ran the related tests before accepting the work."></textarea></label>
+              <button class="primary" type="submit">Record correction</button>
+              <span id="form-status" role="status"></span>
+            </form>
+          </section>
+
+          <section id="proposals" class="panel proposals-panel">
+            <div class="section-heading"><div><p class="eyebrow">AGENT PROPOSES · YOU DECIDE</p><h2>Suggestions</h2></div></div>
+            <div id="proposal-list" class="proposal-list"></div>
+          </section>
+        </div>
+
+        <section id="habits" class="panel learned-panel">
+          <div class="section-heading"><div><p class="eyebrow">BEHAVIOR, NOT JUST MEMORY</p><h2>Learned habits</h2></div><span class="badge green">Reversible</span></div>
+          <div id="habit-list" class="habit-list"></div>
+        </section>
+
+        <section id="activity" class="panel activity-panel">
+          <div class="section-heading"><div><p class="eyebrow">TRANSPARENT BY DEFAULT</p><h2>Recent activity</h2></div></div>
+          <div id="activity-list" class="activity-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="proposal-dialog">
+      <button class="dialog-close" aria-label="Close">×</button>
+      <div id="proposal-detail"></div>
+    </dialog>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
