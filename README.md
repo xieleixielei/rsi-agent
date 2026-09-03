@@ -2,7 +2,7 @@
 
 RSI Agent is a human-guided adaptation layer for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). It turns repeated corrections from normal agent use into scoped, explainable habit proposals. Nothing changes until a person approves it.
 
-This repository currently contains a dependency-free product demo of the core loop:
+This repository contains a product demo of the core loop plus an installable Cordis bundle for DeepSeek Harness:
 
 ```text
 human feedback -> repeated-pattern detection -> proposal -> trial -> adoption or rollback
@@ -10,18 +10,19 @@ human feedback -> repeated-pattern detection -> proposal -> trial -> adoption or
 
 ## Run the demo
 
-Requirements: Node.js 20 or newer.
+Requirements: Node.js 20 or newer and pnpm.
 
 ```bash
-npm start
+pnpm install
+pnpm start
 ```
 
-Open <http://127.0.0.1:4173>. The demo stores state in `.data/state.json` and never sends data over the network.
+Open <http://127.0.0.1:4173>. The demo stores state in `.data/state.json`; it sends nothing to third parties.
 
 Run tests with:
 
 ```bash
-npm test
+pnpm test
 ```
 
 ## What to try
@@ -31,8 +32,25 @@ npm test
 3. Approve a trial, then adopt or undo the habit.
 4. Use **Load sample week** to see several product states at once.
 
-## Current boundary
+## Connect DeepSeek Harness
 
-The demo uses synthetic task events so it works without a DeepSeek API key. The event model and adapter seam are designed for DeepSeek Harness's append-only session log; see [docs/deepseek-integration.md](docs/deepseek-integration.md).
+The plugin reuses Harness's built-in, human-only `/feedback` command. It forwards the resulting durable `feedback/record` events to this control plane, then polls back only habits that a person has adopted:
+
+```bash
+dsh plugin --profile web add ./plugins/deepseek-harness-rsi
+RSI_PROJECT=rsi-agent RSI_CONTROL_PLANE_URL=http://127.0.0.1:4173 dsh web
+```
+
+Inside Harness:
+
+```text
+/feedback missing_verification | Please run targeted tests before finishing
+```
+
+See [plugins/deepseek-harness-rsi/README.md](plugins/deepseek-harness-rsi/README.md) for configuration and the shared-token option.
+
+## Trust boundary
+
+The control plane still works without a DeepSeek API key. The plugin follows DeepSeek Harness's current Cordis bundle, dynamic prompt-context, and append-only Session event interfaces; see [docs/deepseek-integration.md](docs/deepseek-integration.md).
 
 Approval rules live outside evolvable configuration. The agent may propose a change, but it cannot approve, promote, or hide it.

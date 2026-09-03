@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { addFeedback, emptyState, mineNewProposals, transitionProposal } from "../src/core.js";
+import { addFeedback, adoptedHabits, emptyState, mineNewProposals, transitionProposal } from "../src/core.js";
 
 function correction(runId, overrides = {}) {
   return {
@@ -69,4 +69,31 @@ test("does not recreate an ignored proposal", () => {
   state = addFeedback(state, correction("run-4"));
   assert.equal(state.proposals.length, 1);
   assert.equal(state.proposals[0].status, "ignored");
+});
+
+test("deduplicates feedback using the Harness event id", () => {
+  let state = emptyState();
+  state = addFeedback(state, correction("session-1", { id: "session-1:4" }));
+  state = addFeedback(state, correction("session-1", { id: "session-1:4" }));
+  assert.equal(state.feedback.length, 1);
+  assert.equal(state.audit.length, 1);
+});
+
+test("only exposes adopted habits for the requested project", () => {
+  let state = emptyState();
+  state = addFeedback(state, correction("run-1"));
+  state = addFeedback(state, correction("run-2"));
+  state = addFeedback(state, correction("run-3"));
+  state = transitionProposal(state, state.proposals[0].id, "adopted");
+  assert.equal(adoptedHabits(state, "rsi-agent").length, 1);
+  assert.equal(adoptedHabits(state, "another-project").length, 0);
+});
+
+test("keeps unclassified feedback without proposing from it", () => {
+  let state = emptyState();
+  for (const runId of ["run-1", "run-2", "run-3"]) {
+    state = addFeedback(state, correction(runId, { category: "unclassified", note: "Something else" }));
+  }
+  assert.equal(state.feedback.length, 3);
+  assert.equal(state.proposals.length, 0);
 });

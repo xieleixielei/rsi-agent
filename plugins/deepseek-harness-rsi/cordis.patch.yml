@@ -1,0 +1,9 @@
+- insert:
+    - id: rsi-approved-habits
+      name: '@rsi-agent/deepseek-harness-plugin'
+      config:
+        controlPlaneUrl: !!js process.env.RSI_CONTROL_PLANE_URL ?? 'http://127.0.0.1:4173'
+        project: !!js process.env.RSI_PROJECT ?? 'rsi-agent'
+        authToken: !!js process.env.RSI_PLUGIN_TOKEN
+        pollIntervalMs: !!js Number(process.env.RSI_POLL_INTERVAL_MS ?? 15000)
+        promptOrder: !!js Number(process.env.RSI_PROMPT_ORDER ?? 900)

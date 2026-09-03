@@ -2,28 +2,27 @@
 
 DeepSeek Harness is the execution plane; RSI Agent is the trusted adaptation control plane.
 
-## Event ingestion
+## Implemented event ingestion
 
-A small Cordis plugin should expose feedback actions in the Harness UI and append explicit events to the durable session stream:
+DeepSeek Harness already ships a human-facing `/feedback` command. It appends this official, log-only event without starting a model turn:
 
 ```json
 {
-  "id": "feedback-1042",
-  "type": "rsi/human-feedback",
-  "sessionId": "session-183",
-  "payload": {
-    "project": "rsi-agent",
-    "category": "missing_verification",
-    "note": "I had to run pytest after completion"
+  "type": "feedback/record",
+  "seq": 14,
+  "data": {
+    "text": "missing_verification | I had to run pytest after completion"
   }
 }
 ```
 
-`src/deepseek-adapter.js` demonstrates the trust boundary: it imports only explicit `rsi/human-feedback` events. Assistant messages cannot approve changes or masquerade as human feedback.
+`plugins/deepseek-harness-rsi` listens only for `feedback/record`, sends an idempotency key of `{sessionId}:{seq}`, retries failed deliveries in memory, and replays non-inherited feedback when a session resumes. Fork-inherited feedback is not counted again. It never imports assistant output. `src/deepseek-adapter.js` accepts the official event plus the original prototype event for migration. Assistant messages cannot approve changes or masquerade as human feedback.
 
-## Habit application
+Structured feedback uses `<category> | <note>`. Unknown free text is preserved as `unclassified` and excluded from automatic proposal mining.
 
-In the next slice, adopted habits should be rendered into a project-scoped prompt section through a dedicated plugin. Trial habits should use a separate DeepSeek Harness home/profile so they cannot mutate the stable profile.
+## Implemented habit application
+
+The plugin polls `GET /api/integrations/deepseek/habits?project=...`. The endpoint returns only adopted habits for that project. The plugin renders them through `ctx.systemPrompt.context`, so Harness logs changed model-visible snapshots through its normal request reconstruction path. Trial habits still belong in a separate DeepSeek Harness home/profile so they cannot mutate the stable profile.
 
 ```text
 stable profile + adopted habits -> normal sessions
@@ -40,3 +39,9 @@ stable profile + trial patch    -> isolated trial sessions
 - evaluation and promotion rules
 
 The evolver may propose changes to prompt, skills, tools, middleware, and eventually the agent loop. It cannot change these trusted components.
+
+## Control-plane API
+
+- `POST /api/integrations/deepseek/feedback` accepts `{ eventId, sessionId, project, text, category? }` and is idempotent by `eventId`.
+- `GET /api/integrations/deepseek/habits?project=<name>` returns adopted habits only.
+- Set `RSI_PLUGIN_TOKEN` on both processes to require a bearer token for these endpoints.

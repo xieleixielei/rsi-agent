@@ -25,7 +25,7 @@ export function emptyState() {
 }
 
 export function makeFeedback(input, now = new Date()) {
-  if (!HABIT_CATALOG[input.category]) {
+  if (input.category !== "unclassified" && !HABIT_CATALOG[input.category]) {
     throw new Error(`Unknown feedback category: ${input.category}`);
   }
   if (!input.project?.trim()) throw new Error("Project is required");
@@ -44,6 +44,7 @@ export function makeFeedback(input, now = new Date()) {
 }
 
 export function addFeedback(state, input, now = new Date()) {
+  if (input.id && state.feedback.some((item) => item.id === input.id)) return state;
   const feedback = makeFeedback(input, now);
   const next = structuredClone(state);
   next.feedback.push(feedback);
@@ -80,6 +81,7 @@ export function mineNewProposals(state, now = new Date(), thresholds = {}) {
 
     const latest = evidence.at(-1);
     const catalog = HABIT_CATALOG[latest.category];
+    if (!catalog) continue;
     const explicitRatio = evidence.filter((item) => item.explicit).length / evidence.length;
     const confidence = Math.min(0.95, 0.55 + evidence.length * 0.07 + taskCount * 0.04 + explicitRatio * 0.08);
 
@@ -145,4 +147,19 @@ export function summarizeState(state) {
 
 export function publicState(state) {
   return { ...state, metrics: summarizeState(state) };
+}
+
+export function adoptedHabits(state, project) {
+  if (!project?.trim()) throw new Error("Project is required");
+  return state.proposals
+    .filter((proposal) => proposal.project === project.trim() && proposal.status === PROPOSAL_STATUS.ADOPTED)
+    .map(({ id, title, trigger, behavior, component, adoptedAt, updatedAt }) => ({
+      id,
+      title,
+      trigger,
+      behavior,
+      component,
+      adoptedAt,
+      updatedAt,
+    }));
 }
