@@ -21,6 +21,8 @@ The bundle registers a human command that appears in Harness command discovery a
 
 `status` shows the control-plane connection, project scope, loaded approved habits, pending feedback, and last refresh. `refresh` synchronizes immediately before showing the same report. No `/rsi` action can approve or mutate a proposal.
 
+The package also ships a Web client companion that mirrors each `/rsi` result into the composer notice area. This keeps status visible even in a brand-new session, where Harness may not yet display persistent command lifecycle rows.
+
 ## Install
 
 Start the control plane first, then install this checkout into the Harness Web profile:

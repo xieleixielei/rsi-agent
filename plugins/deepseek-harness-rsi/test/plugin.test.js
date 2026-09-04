@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { RsiBridge, executeRsiCommand, formatHabitsContext, formatRsiStatus } from "../index.js";
 
 const config = {
@@ -91,4 +92,10 @@ test("rejects unknown RSI command actions without model work", async () => {
     kind: "error",
     text: "Usage: /rsi [status|refresh]",
   });
+});
+
+test("ships a Web client companion for visible command acknowledgements", async () => {
+  const source = await readFile(new URL("../client.js", import.meta.url), "utf8");
+  assert.match(source, /command\/executed/);
+  assert.match(source, /conversation\.input\.for\(sessionScope\)\.notify/);
 });
