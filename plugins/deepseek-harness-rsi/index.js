@@ -1,7 +1,13 @@
 import Schema from "@deepseek-ai/schemastery";
 
 export const name = "rsi-approved-habits";
-export const inject = ["systemPrompt"];
+export const inject = ["commands", "systemPrompt"];
+
+const RSI_USAGE = "Usage: /rsi [status|refresh]";
+
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
 
 export const Config = Schema.object({
   controlPlaneUrl: Schema.string().default("http://127.0.0.1:4173"),
@@ -27,6 +33,36 @@ export function formatHabitsContext(habits) {
   return lines.join("\n");
 }
 
+export function formatRsiStatus(bridge) {
+  const connected = bridge.lastRefreshAt !== undefined && bridge.lastError === undefined;
+  const lines = [
+    `RSI Agent: ${connected ? "connected" : "not connected"}`,
+    `Project: ${bridge.config.project}`,
+    `Approved habits loaded: ${bridge.habits.length}`,
+    `Feedback waiting to sync: ${bridge.pendingFeedback.size}`,
+    `Last refresh: ${bridge.lastRefreshAt ?? "never"}`,
+  ];
+  if (bridge.lastError) lines.push(`Last error: ${bridge.lastError}`);
+  if (bridge.habits.length) {
+    lines.push("Habits:", ...bridge.habits.map((habit) => `- ${habit.title}`));
+  }
+  return lines.join("\n");
+}
+
+export async function executeRsiCommand(bridge, rawInput, signal) {
+  const action = rawInput.trim() || "status";
+  if (action === "status") return { kind: "success", text: formatRsiStatus(bridge) };
+  if (action !== "refresh") return { kind: "error", text: RSI_USAGE };
+
+  try {
+    await bridge.refresh(signal);
+    await bridge.flushFeedback(signal);
+    return { kind: "success", text: formatRsiStatus(bridge) };
+  } catch (error) {
+    return { kind: "error", text: `RSI refresh failed: ${errorMessage(error)}` };
+  }
+}
+
 export class RsiBridge {
   constructor(ctx, config, fetchImpl = globalThis.fetch) {
     this.ctx = ctx;
@@ -35,6 +71,8 @@ export class RsiBridge {
     this.habits = [];
     this.pendingFeedback = new Map();
     this.flushing = undefined;
+    this.lastRefreshAt = undefined;
+    this.lastError = undefined;
   }
 
   headers() {
@@ -49,14 +87,21 @@ export class RsiBridge {
   }
 
   async refresh(signal) {
-    const url = new URL(`${this.config.controlPlaneUrl}/api/integrations/deepseek/habits`);
-    url.searchParams.set("project", this.config.project);
-    const response = await this.fetch(url, { headers: this.headers(), signal });
-    if (!response.ok) throw new Error(`habit refresh failed with HTTP ${response.status}`);
-    const body = await response.json();
-    if (!Array.isArray(body.habits)) throw new Error("habit refresh returned an invalid payload");
-    this.habits = body.habits;
-    return this.habits;
+    try {
+      const url = new URL(`${this.config.controlPlaneUrl}/api/integrations/deepseek/habits`);
+      url.searchParams.set("project", this.config.project);
+      const response = await this.fetch(url, { headers: this.headers(), signal });
+      if (!response.ok) throw new Error(`habit refresh failed with HTTP ${response.status}`);
+      const body = await response.json();
+      if (!Array.isArray(body.habits)) throw new Error("habit refresh returned an invalid payload");
+      this.habits = body.habits;
+      this.lastRefreshAt = new Date().toISOString();
+      this.lastError = undefined;
+      return this.habits;
+    } catch (error) {
+      this.lastError = errorMessage(error);
+      throw error;
+    }
   }
 
   async forwardFeedback(session, event, signal) {
@@ -107,6 +152,13 @@ export function apply(ctx, config) {
     order: config.promptOrder,
     text: () => bridge.contextText(),
   }), "rsi-approved-habits.context()");
+
+  ctx.effect(() => ctx.commands.register({
+    name: "rsi",
+    description: "show or refresh RSI Agent connection and approved habits",
+    input: { hint: "[status|refresh]" },
+    handler: invocation => executeRsiCommand(bridge, invocation.rawInput, invocation.signal),
+  }), "rsi-approved-habits.command()");
 
   ctx.on("session/event", (session, event) => {
     if (!bridge.enqueueFeedback(session, event)) return;

@@ -9,6 +9,18 @@ It has two deliberately asymmetric responsibilities:
 
 It cannot create, approve, promote, or hide proposals.
 
+## Session command
+
+The bundle registers a human command that appears in Harness command discovery and runs without a model turn:
+
+```text
+/rsi
+/rsi status
+/rsi refresh
+```
+
+`status` shows the control-plane connection, project scope, loaded approved habits, pending feedback, and last refresh. `refresh` synchronizes immediately before showing the same report. No `/rsi` action can approve or mutate a proposal.
+
 ## Install
 
 Start the control plane first, then install this checkout into the Harness Web profile:

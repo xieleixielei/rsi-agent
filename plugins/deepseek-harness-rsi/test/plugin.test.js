@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { RsiBridge, formatHabitsContext } from "../index.js";
+import { RsiBridge, executeRsiCommand, formatHabitsContext, formatRsiStatus } from "../index.js";
 
 const config = {
   controlPlaneUrl: "http://127.0.0.1:4173/",
@@ -71,4 +71,24 @@ test("retains failed feedback for retry and removes it after delivery", async ()
   assert.equal(bridge.pendingFeedback.size, 1);
   await bridge.flushFeedback();
   assert.equal(bridge.pendingFeedback.size, 0);
+});
+
+test("reports visible connection and approved-habit status", async () => {
+  const bridge = new RsiBridge({}, config, async () => new Response(JSON.stringify({
+    habits: [{ title: "Run tests", trigger: "finishing", behavior: "test" }],
+  })));
+  assert.match(formatRsiStatus(bridge), /RSI Agent: not connected/);
+  const result = await executeRsiCommand(bridge, " refresh ", new AbortController().signal);
+  assert.equal(result.kind, "success");
+  assert.match(result.text, /RSI Agent: connected/);
+  assert.match(result.text, /Approved habits loaded: 1/);
+  assert.match(result.text, /- Run tests/);
+});
+
+test("rejects unknown RSI command actions without model work", async () => {
+  const bridge = new RsiBridge({}, config, async () => { throw new Error("must not fetch"); });
+  assert.deepEqual(await executeRsiCommand(bridge, "approve", new AbortController().signal), {
+    kind: "error",
+    text: "Usage: /rsi [status|refresh]",
+  });
 });
