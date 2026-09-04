@@ -48,4 +48,4 @@ The evolver may propose changes to prompt, skills, tools, middleware, and eventu
 
 ## Harness visibility
 
-The bundle registers `/rsi status` and `/rsi refresh` through the official human-command registry. They appear in session command discovery, execute without a model turn, and expose connection and approved-habit state without providing approval or proposal-mutation actions.
+The bundle registers `/rsi status`, `/rsi refresh`, and `/rsi improve <content>` through the official human-command registry. They appear in session command discovery and execute without a model turn. A dismissible RSI Agent card is shown above the composer by default. `improve` creates a proposal from explicit human input, but approval and activation remain unavailable to the plugin.

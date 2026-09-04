@@ -17,11 +17,14 @@ The bundle registers a human command that appears in Harness command discovery a
 /rsi
 /rsi status
 /rsi refresh
+/rsi improve <improvement content>
 ```
 
 `status` shows the control-plane connection, project scope, loaded approved habits, pending feedback, and last refresh. `refresh` synchronizes immediately before showing the same report. No `/rsi` action can approve or mutate a proposal.
 
-The package also ships a Web client companion that mirrors each `/rsi` result into the composer notice area. This keeps status visible even in a brand-new session, where Harness may not yet display persistent command lifecycle rows.
+The package also ships a Web client companion. It shows an RSI Agent card above the composer by default, lets the user close that card for the current view, and mirrors each `/rsi` result into the composer notice area. This keeps status visible even in a brand-new session, where Harness may not yet display persistent command lifecycle rows.
+
+`/rsi improve <content>` creates a proposed improvement immediately from the human-authored content. It does not activate the change: the proposal still has to pass the existing human-controlled trial/adopt/ignore flow.
 
 ## Install
 

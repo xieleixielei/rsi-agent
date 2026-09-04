@@ -46,6 +46,7 @@ Inside Harness:
 ```text
 /feedback missing_verification | Please run targeted tests before finishing
 /rsi status
+/rsi improve Prefer targeted tests before broad test suites
 ```
 
 See [plugins/deepseek-harness-rsi/README.md](plugins/deepseek-harness-rsi/README.md) for configuration and the shared-token option.

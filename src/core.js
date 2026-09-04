@@ -59,6 +59,45 @@ export function addFeedback(state, input, now = new Date()) {
   return next;
 }
 
+export function proposeImprovement(state, input, now = new Date()) {
+  if (!input.id?.trim()) throw new Error("Improvement id is required");
+  if (!input.project?.trim()) throw new Error("Project is required");
+  if (!input.runId?.trim()) throw new Error("Run id is required");
+  if (!input.content?.trim()) throw new Error("Improvement content is required");
+  if (state.proposals.some((item) => item.id === input.id)) return state;
+
+  const content = input.content.trim();
+  const next = structuredClone(state);
+  next.proposals.push({
+    id: input.id,
+    createdAt: now.toISOString(),
+    patternKey: `${input.project.trim()}:proactive:${input.id}`,
+    project: input.project.trim(),
+    category: "proactive_improvement",
+    title: content.length > 72 ? `${content.slice(0, 69)}...` : content,
+    summary: content,
+    trigger: "When working in this project",
+    behavior: content,
+    benefit: "Apply an explicitly requested improvement to future Harness behavior",
+    tradeoff: "Requires human review before trial or adoption",
+    component: "proactive-improvement",
+    status: PROPOSAL_STATUS.PROPOSED,
+    evidenceIds: [],
+    occurrences: 1,
+    distinctTasks: 1,
+    confidence: 0.8,
+    trialRuns: 0,
+  });
+  next.audit.push({
+    id: crypto.randomUUID(),
+    at: now.toISOString(),
+    actor: "human",
+    action: "proposal.proposed",
+    target: input.id,
+  });
+  return next;
+}
+
 export function mineNewProposals(state, now = new Date(), thresholds = {}) {
   const minOccurrences = thresholds.minOccurrences ?? 3;
   const minDistinctTasks = thresholds.minDistinctTasks ?? 2;

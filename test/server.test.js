@@ -68,3 +68,34 @@ test("protects integration endpoints when a token is configured", async () => {
     assert.equal(allowed.status, 200);
   }, { integrationToken: "secret" });
 });
+
+test("creates an idempotent proposal from an explicit Harness improvement", async () => {
+  await withServer(async (baseUrl) => {
+    const body = {
+      eventId: "session-4:cmd-1",
+      sessionId: "session-4",
+      project: "rsi-agent",
+      content: "Summarize verification failures before retrying",
+    };
+    const first = await fetch(`${baseUrl}/api/integrations/deepseek/improvements`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    assert.equal(first.status, 201);
+    const created = await first.json();
+    assert.match(created.proposalId, /^proposal-/);
+
+    const duplicate = await fetch(`${baseUrl}/api/integrations/deepseek/improvements`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    assert.equal(duplicate.status, 200);
+    assert.equal((await duplicate.json()).created, false);
+
+    const state = await (await fetch(`${baseUrl}/api/state`)).json();
+    assert.equal(state.proposals.length, 1);
+    assert.equal(state.proposals[0].status, "proposed");
+  });
+});

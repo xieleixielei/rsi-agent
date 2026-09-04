@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { addFeedback, adoptedHabits, emptyState, publicState, transitionProposal } from "./core.js";
+import { addFeedback, adoptedHabits, emptyState, proposeImprovement, publicState, transitionProposal } from "./core.js";
 import { FEEDBACK_LABELS } from "./catalog.js";
 import { parseHarnessFeedbackText } from "./deepseek-adapter.js";
 import { sampleWeek } from "./sample.js";
@@ -97,6 +97,26 @@ export function createAppServer(options = {}) {
           return addFeedback(current, feedback);
         });
         sendJson(response, created ? 201 : 200, { created, feedbackId: feedback.id, metrics: publicState(state).metrics });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/integrations/deepseek/improvements") {
+        const input = await readJson(request);
+        if (!input.eventId?.trim()) throw new Error("Event id is required");
+        if (!input.sessionId?.trim()) throw new Error("Session id is required");
+        if (!input.content?.trim()) throw new Error("Improvement content is required");
+        const proposalId = `proposal-${input.eventId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+        let created = false;
+        const state = await store.update((current) => {
+          created = !current.proposals.some((item) => item.id === proposalId);
+          return proposeImprovement(current, {
+            id: proposalId,
+            project: input.project,
+            runId: input.sessionId,
+            content: input.content,
+          });
+        });
+        sendJson(response, created ? 201 : 200, { created, proposalId, metrics: publicState(state).metrics });
         return;
       }
 

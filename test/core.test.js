@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { addFeedback, adoptedHabits, emptyState, mineNewProposals, transitionProposal } from "../src/core.js";
+import { addFeedback, adoptedHabits, emptyState, mineNewProposals, proposeImprovement, transitionProposal } from "../src/core.js";
 
 function correction(runId, overrides = {}) {
   return {
@@ -96,4 +96,23 @@ test("keeps unclassified feedback without proposing from it", () => {
   }
   assert.equal(state.feedback.length, 3);
   assert.equal(state.proposals.length, 0);
+});
+
+test("creates an idempotent human-reviewed proactive improvement proposal", () => {
+  let state = proposeImprovement(emptyState(), {
+    id: "proposal-session-1-cmd-1",
+    project: "rsi-agent",
+    runId: "session-1",
+    content: "Prefer targeted tests before broad test suites",
+  });
+  state = proposeImprovement(state, {
+    id: "proposal-session-1-cmd-1",
+    project: "rsi-agent",
+    runId: "session-1",
+    content: "Prefer targeted tests before broad test suites",
+  });
+  assert.equal(state.proposals.length, 1);
+  assert.equal(state.proposals[0].status, "proposed");
+  assert.equal(state.proposals[0].behavior, "Prefer targeted tests before broad test suites");
+  assert.equal(adoptedHabits(state, "rsi-agent").length, 0);
 });

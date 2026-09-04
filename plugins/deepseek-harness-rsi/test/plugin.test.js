@@ -90,12 +90,35 @@ test("rejects unknown RSI command actions without model work", async () => {
   const bridge = new RsiBridge({}, config, async () => { throw new Error("must not fetch"); });
   assert.deepEqual(await executeRsiCommand(bridge, "approve", new AbortController().signal), {
     kind: "error",
-    text: "Usage: /rsi [status|refresh]",
+    text: "Usage: /rsi [status|refresh|improve <content>]",
   });
+});
+
+test("submits proactive improvement content for human approval", async () => {
+  const bridge = new RsiBridge({}, config, async (_url, options) => {
+    const body = JSON.parse(options.body);
+    assert.deepEqual(body, {
+      eventId: "session-3:cmd-7",
+      sessionId: "session-3",
+      project: "rsi-agent",
+      content: "run targeted tests first",
+    });
+    return new Response(JSON.stringify({ proposalId: "proposal-session-3-cmd-7" }), { status: 201 });
+  });
+  const result = await executeRsiCommand(
+    bridge,
+    "improve run targeted tests first",
+    new AbortController().signal,
+    { commandId: "cmd-7", agent: { session: { id: "session-3" } } },
+  );
+  assert.equal(result.kind, "success");
+  assert.match(result.text, /human approval/);
 });
 
 test("ships a Web client companion for visible command acknowledgements", async () => {
   const source = await readFile(new URL("../client.js", import.meta.url), "utf8");
   assert.match(source, /command\/executed/);
   assert.match(source, /conversation\.input\.for\(sessionScope\)\.notify/);
+  assert.match(source, /data-rsi-card/);
+  assert.match(source, /关闭 RSI Agent 卡片/);
 });
