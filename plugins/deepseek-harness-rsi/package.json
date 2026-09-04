@@ -1,6 +1,6 @@
 {
   "name": "@rsi-agent/deepseek-harness-plugin",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Human-approved habit bridge for DeepSeek Harness",
   "type": "module",
   "main": "index.js",
@@ -11,6 +11,7 @@
   "files": [
     "index.js",
     "client.js",
+    "improvement-manager.js",
     "cordis.patch.yml",
     "README.md"
   ],

@@ -7,3 +7,7 @@
         authToken: !!js process.env.RSI_PLUGIN_TOKEN
         pollIntervalMs: !!js Number(process.env.RSI_POLL_INTERVAL_MS ?? 15000)
         promptOrder: !!js Number(process.env.RSI_PROMPT_ORDER ?? 900)
+        apiKeyEnv: !!js process.env.RSI_DEEPSEEK_API_KEY_REF ?? 'DEEPSEEK_API_KEY'
+        deepSeekApiBaseUrl: !!js process.env.RSI_DEEPSEEK_API_BASE_URL ?? 'https://api.deepseek.com'
+        deepSeekModel: !!js process.env.RSI_DEEPSEEK_MODEL ?? 'deepseek-v4-flash'
+        managedPluginDir: !!js process.env.RSI_MANAGED_PLUGIN_DIR

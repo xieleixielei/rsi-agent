@@ -1,7 +1,8 @@
 import Schema from "@deepseek-ai/schemastery";
+import { ImprovementManager, createPluginApi, defaultManagedDir } from "./improvement-manager.js";
 
 export const name = "rsi-approved-habits";
-export const inject = ["commands", "systemPrompt"];
+export const inject = ["commands", "systemPrompt", "credentials", "loader", "connection"];
 
 const RSI_USAGE = "Usage: /rsi [status|refresh|improve <content>]";
 
@@ -15,6 +16,10 @@ export const Config = Schema.object({
   authToken: Schema.string(),
   pollIntervalMs: Schema.number().min(1000).default(15000),
   promptOrder: Schema.number().default(900),
+  apiKeyEnv: Schema.string().default("DEEPSEEK_API_KEY"),
+  deepSeekApiBaseUrl: Schema.string().default("https://api.deepseek.com"),
+  deepSeekModel: Schema.string().default("deepseek-v4-flash"),
+  managedPluginDir: Schema.string().default(defaultManagedDir()),
 });
 
 function normalizeBaseUrl(url) {
@@ -49,19 +54,15 @@ export function formatRsiStatus(bridge) {
   return lines.join("\n");
 }
 
-export async function executeRsiCommand(bridge, rawInput, signal, invocation = {}) {
+export async function executeRsiCommand(bridge, rawInput, signal) {
   const [action = "status", ...rest] = rawInput.trim().split(/\s+/).filter(Boolean);
   if (action === "status") return { kind: "success", text: formatRsiStatus(bridge) };
   if (action === "improve") {
     const content = rest.join(" ").trim();
     if (!content) return { kind: "error", text: RSI_USAGE };
     try {
-      const proposal = await bridge.proposeImprovement({
-        sessionId: invocation.agent?.session?.id,
-        commandId: invocation.commandId,
-        content,
-      }, signal);
-      return { kind: "success", text: `RSI improvement proposed for human approval: ${proposal.proposalId}` };
+      const plugin = await bridge.improvements.generate(content, signal);
+      return { kind: "success", text: `RSI improvement created and loaded: ${plugin.title} (${plugin.id})` };
     } catch (error) {
       return { kind: "error", text: `RSI improvement failed: ${errorMessage(error)}` };
     }
@@ -78,7 +79,7 @@ export async function executeRsiCommand(bridge, rawInput, signal, invocation = {
 }
 
 export class RsiBridge {
-  constructor(ctx, config, fetchImpl = globalThis.fetch) {
+  constructor(ctx, config, fetchImpl = globalThis.fetch, improvements) {
     this.ctx = ctx;
     this.config = { ...config, controlPlaneUrl: normalizeBaseUrl(config.controlPlaneUrl) };
     this.fetch = fetchImpl;
@@ -87,6 +88,7 @@ export class RsiBridge {
     this.flushing = undefined;
     this.lastRefreshAt = undefined;
     this.lastError = undefined;
+    this.improvements = improvements;
   }
 
   headers() {
@@ -135,23 +137,6 @@ export class RsiBridge {
     return true;
   }
 
-  async proposeImprovement({ sessionId, commandId, content }, signal) {
-    if (!sessionId || !commandId) throw new Error("Harness session identity is unavailable");
-    const response = await this.fetch(`${this.config.controlPlaneUrl}/api/integrations/deepseek/improvements`, {
-      method: "POST",
-      headers: { ...this.headers(), "content-type": "application/json" },
-      signal,
-      body: JSON.stringify({
-        eventId: `${sessionId}:${commandId}`,
-        sessionId,
-        project: this.config.project,
-        content,
-      }),
-    });
-    if (!response.ok) throw new Error(`improvement proposal failed with HTTP ${response.status}`);
-    return response.json();
-  }
-
   enqueueFeedback(session, event) {
     if (event.type !== "feedback/record") return false;
     this.pendingFeedback.set(`${session.id}:${event.seq}`, { session, event });
@@ -175,7 +160,8 @@ export class RsiBridge {
 }
 
 export function apply(ctx, config) {
-  const bridge = new RsiBridge(ctx, config);
+  const improvements = new ImprovementManager(ctx, config);
+  const bridge = new RsiBridge(ctx, config, globalThis.fetch, improvements);
   const controller = new AbortController();
 
   ctx.effect(() => ctx.systemPrompt.context({
@@ -186,10 +172,21 @@ export function apply(ctx, config) {
 
   ctx.effect(() => ctx.commands.register({
     name: "rsi",
-    description: "show status, refresh, or propose a human-reviewed Harness improvement",
+    description: "show status, refresh, or create a loadable DeepSeek-generated improvement",
     input: { hint: "[status|refresh|improve <content>]" },
-    handler: invocation => executeRsiCommand(bridge, invocation.rawInput, invocation.signal, invocation),
+    handler: invocation => executeRsiCommand(bridge, invocation.rawInput, invocation.signal),
   }), "rsi-approved-habits.command()");
+
+  ctx.effect(() => ctx.connection.fetch.register({
+    path: "/api/rsi/plugins",
+    methods: ["GET", "POST"],
+    fetch: createPluginApi(improvements),
+  }), "rsi-generated-plugins.api()");
+
+  ctx.effect(async () => {
+    await improvements.initialize();
+    return () => improvements.dispose();
+  }, "rsi-generated-plugins.initialize()");
 
   ctx.on("session/event", (session, event) => {
     if (!bridge.enqueueFeedback(session, event)) return;

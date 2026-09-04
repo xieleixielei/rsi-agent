@@ -24,7 +24,9 @@ The bundle registers a human command that appears in Harness command discovery a
 
 The package also ships a Web client companion. It shows an RSI Agent card above the composer by default, lets the user close that card for the current view, and mirrors each `/rsi` result into the composer notice area. This keeps status visible even in a brand-new session, where Harness may not yet display persistent command lifecycle rows.
 
-`/rsi improve <content>` creates a proposed improvement immediately from the human-authored content. It does not activate the change: the proposal still has to pass the existing human-controlled trial/adopt/ignore flow.
+`/rsi improve <content>` resolves the existing `DEEPSEEK_API_KEY` credential through Harness, asks DeepSeek for a constrained prompt-plugin specification, validates it, creates deterministic local plugin code, and loads it immediately. Generated improvements appear as child cards in the RSI card and can be loaded or unloaded at any time.
+
+The DeepSeek model never supplies executable JavaScript. Only its validated prompt text is embedded in a fixed plugin template, and credential values are neither logged nor persisted by this plugin.
 
 ## Install
 
